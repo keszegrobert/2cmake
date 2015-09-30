@@ -40,8 +40,27 @@ def normalizepath(input):
 	return newname
 	
 targetlist = sorted(list(targetset))
+
+custom_commands = {}
 #for target in targetlist:
 #	print normalizestring(target)
+
+class Command:
+	def __init__(self,name,command,extension,output,description):
+		self.name = name
+		self.command = command
+		self.extension = extension
+		self.output = output
+		self.description = description
+	def getstrings(self):
+		lines = list()
+		lines.append('add_custom_target("'+self.name+'"')
+		lines.append('\tOUTPUT "'+normalizepath(self.output)+'"')
+		lines.append('\tCOMMAND \''+normalizepath(self.command)+'\'')
+		lines.append('\tCOMMENT "'+self.description+'"')
+		lines.append('\tSOURCES ${SOURCES}')
+		lines.append(')')
+		return lines
 
 class Config:
 	def __init__(self, name, properties):
@@ -75,6 +94,10 @@ class Config:
 		for file in self.files:
 			lines.append('\t\t"'+normalizepath(file)+'"')
 		lines.append('\t)')
+		
+		for cmd in custom_commands:
+			command = custom_commands[cmd];
+			#lines.extend(command.getstrings())
 
 		#goal target
 		lines.append('#')
@@ -124,6 +147,7 @@ print "------ Filters -----"
 cmake_groups = list()
 vcproj_configs = {}
 
+
 def readconfigs(lroot):
 	for configxml in lroot:
 		cfgname = configxml.get("Name")
@@ -171,6 +195,23 @@ def getgroupsfor(rootnames,lroot):
 		newnames.append(xmlfiltername)
 		getgroupsfor(newnames,xmlFilter)
 		
+def getTool(toolpath):
+	xmltool = ET.parse(toolpath)
+	root = xmltool.getroot()
+	print "TOOL: "+root.get("Name")
+	xmlrules = xmltool.find("Rules")
+	for xmlbuildrule in xmlrules:
+		name = xmlbuildrule.get("Name")
+		cmd = xmlbuildrule.get("CommandLine")
+		ext = xmlbuildrule.get("FileExtensions")
+		output = xmlbuildrule.get("Outputs")
+		description = xmlbuildrule.get("ExecutionDescription");
+		custom_commands[name] = Command(name,cmd,ext,output,description)
+		
+xmlTools = root.find("ToolFiles")
+for xmlTool in xmlTools:
+	getTool(xmlTool.get("RelativePath"))
+	
 xmlConfigs = root.find("Configurations")
 readconfigs(xmlConfigs)
 
