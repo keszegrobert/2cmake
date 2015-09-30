@@ -5,10 +5,10 @@ Python tools able to generate CMakelists.txt from various sources
 
 This converter is able to generate CMakeLists.txt from a vcproj file
 
-- source_group from the <Filter> tags
+- source_group from the &lt;Filter&gt; tags
 - excluded files support
-- processing <Configuration> tags
-- COMPILE_FLAGS from VCCLCompilerTool <Tool> 
+- processing &lt;Configuration&gt; tags
+- COMPILE_FLAGS from VCCLCompilerTool &lt;Tool&gt;
 - Preprocessor definitions
 
 #sln2cmake
