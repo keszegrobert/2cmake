@@ -110,7 +110,17 @@ class Config:
 			lines.append('\tadd_library('+projname+' STATIC ${SOURCES})')
 		else:
 			print 'Unknown configuration type:'+type
-			
+		
+		if self.tools.has_key('VCCLCompilerTool'):
+			tool = self.tools['VCCLCompilerTool']
+			if tool.has_key('PreprocessorDefinitions'):
+				preprocessor = tool['PreprocessorDefinitions'].split(';')
+				lines.append('\tset_property(TARGET '+projname);
+				lines.append('\t\tAPPEND PROPERTY COMPILE_DEFINITIONS');
+				for prep in preprocessor:
+					lines.append('\t\t'+prep);
+				lines.append('\t)')
+				
 		lines.append('endif()')
 		return lines
 
@@ -167,10 +177,11 @@ def readfileconfigs(fname,lroot):
 			excluded = True
 #			print "Excluded:"+fname
 		
-		config = vcproj_configs[cname]
-		for tool in fileConfig:
-			if not excluded:
-				config.add_file(fname)
+		if vcproj_configs.has_key(cname):
+			config = vcproj_configs[cname]
+			for tool in fileConfig:
+				if not excluded:
+					config.add_file(fname)
 
 def getgroupsfor(rootnames,lroot):
 #	print "//".join(rootnames)
