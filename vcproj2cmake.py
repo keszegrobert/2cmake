@@ -31,6 +31,14 @@ cfg = sorted(list(configset))
 def normalizestring(input):
 	return input.replace("|","_").replace("(","").replace(")","").replace(" ","_").upper()
 
+def normalizepath(input):
+	patharr = input.split('\\')
+	if patharr[0] == '.':
+		newname = '/'.join(patharr[1:])
+	else:
+		newname = '/'.join(patharr)
+	return newname
+	
 targetlist = sorted(list(targetset))
 #for target in targetlist:
 #	print normalizestring(target)
@@ -58,41 +66,37 @@ class Config:
 				includes = tool['AdditionalIncludeDirectories'].split(';')
 				lines.append('\tinclude_directories(')
 				for dir in includes:
-					lines.append('\t\t'+dir)
+					lines.append('\t\t'+dir.replace("\\","/"))
 				lines.append('\t)')
 			
 		#source files
 		lines.append('')
-		lines.append('\tset(CONFIGSRC ')
+		lines.append('\tlist(APPEND CONFIGSRC ')
 		for file in self.files:
-			lines.append('\t\t'+file)
+			lines.append('\t\t"'+normalizepath(file)+'"')
 		lines.append('\t)')
 
 		#goal target
 		lines.append('#')
 		type = self.properties['ConfigurationType']
 		if type == '1':
-			lines.append('\tadd_executable('+projname+' ${CONFIGSRC})')
+			lines.append('\tadd_executable('+projname+' ${SOURCES})')
 		elif type == '2':
-			lines.append('\tadd_library('+projname+' SHARED ${CONFIGSRC})')
+			lines.append('\tadd_library('+projname+' SHARED ${SOURCES})')
 		elif type == '4':
-			lines.append('\tadd_library('+projname+' STATIC ${CONFIGSRC})')
+			lines.append('\tadd_library('+projname+' STATIC ${SOURCES})')
 		else:
 			print 'Unknown configuration type:'+type
 			
 		lines.append('endif()')
 		return lines
-	
+
 class Group:
 	def __init__(self,names,files):
 		self.names = names
 		normalized = []
 		for file in files:
-			patharr = file.split('\\')
-			if patharr[0] == '.':
-				newname = '/'.join(patharr[1:])
-			else:
-				newname = '/'.join(patharr)
+			newname = normalizepath(file)
 			normalized.append(newname)
 		self.files = normalized
 
@@ -108,7 +112,7 @@ class Group:
 		lines = []
 		lines.append('set('+self.getname())
 		for file in self.files:
-			lines.append('\t'+file)
+			lines.append('\t"'+file+'"')
 		lines.append(')')
 		
 		lines.append('source_group("'+'\\\\'.join(self.names)+'"')
@@ -179,6 +183,11 @@ lines = []
 #lines.append('set(CMAKE_CONFIGURATION_TYPES "'+";".join(cfg)+'" CACHE STRING "VS/XCode configurations" FORCE)')
 lines.append('cmake_minimum_required(VERSION 2.8)')
 lines.append('project('+projname+')')
+lines.append('set(CONFIGSRC)')
+lines.append('if(NOT CMAKE_BUILD_TYPE)')
+lines.append('set(CMAKE_BUILD_TYPE Debug|Win32 CACHE STRING')
+lines.append('\t"Choose the type of the build, options are: ${TARGETS} " FORCE)')
+lines.append('endif()')
 
 for group in cmake_groups:
 	lines.extend(group.tostring())
@@ -190,22 +199,19 @@ lines.append(')')
 
 lines.append('set(TARGETS')
 for target in targetlist:
-	lines.append('\t'+target)
-for target in targetlist:
-	lines.append('\t'+target)
+	lines.append('\t"'+target+'"')
 lines.append(')')
-
-lines.append('if(NOT CMAKE_BUILD_TYPE)')
-lines.append('set(CMAKE_BUILD_TYPE Debug|Win32 CACHE STRING')
-lines.append('\t"Choose the type of the build, options are: ${TARGETS} " FORCE)')
-lines.append('endif()')
-
-lines.append('add_library( '+projname+' STATIC ${SOURCES} )')
-lines.append('set_target_properties( '+projname+' PROPERTIES LINKER_LANGUAGE C++ )')
 
 for name in vcproj_configs:
 	lines.extend(vcproj_configs[name].get_string())
 	
+lines.append('set_target_properties( '+projname+' PROPERTIES LINKER_LANGUAGE C++ )')
+
+	
+lines.append('set(TOEXCLUDE ${SOURCES})')
+lines.append('list(REMOVE_ITEM TOEXCLUDE ${CONFIGSRC})')
+lines.append('set_source_files_properties(${TOEXCLUDE} PROPERTIES HEADER_FILE_ONLY ON)')
+
 print "------ End -----"
 
 cmakefile = open("CMakeLists.txt","w")
