@@ -166,7 +166,7 @@ for config in root.iter("Configuration"):
 cfg = sorted(list(configset))
 
 def normalizestring(input):
-	return input.replace("|","_").replace("(","").replace(")","").replace(" ","_").upper()
+	return input.replace("|","_").replace("(","").replace(")","").replace(" ","_").replace("-","_").upper()
 
 def get_compile_flags(tool):
 	compile_flags = []
@@ -261,7 +261,10 @@ class Config:
 				includes = tool['AdditionalIncludeDirectories'].split(';')
 				lines.append('\tinclude_directories(')
 				for dir in includes:
-					lines.append('\t\t'+normalizepath(dir))
+					if dir == '.':
+						lines.append('\t\t"."')
+					else:
+						lines.append('\t\t"'+normalizepath(dir)+'"')
 				lines.append('\t)')
 			
 		#source files
