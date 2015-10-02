@@ -87,36 +87,47 @@ flaglist.append({'name':'TreatWChar_tAsBuiltInType', 'flag':'/Zc:wchar_t-', 'val
 def print_usage():
 	print 'Usage: vc2cm.py example.vcproj [-m foo=bar]* '
 	print 'Available commands:'
-	print "\t-m\tdefine macros"
+	print "\t-m, --macro\tdefine macros, like: -m SolutionDir=\"Relative/Directory\""
+	print "\t-s, --strict\tbe strict(exclude missing files)"
+	print "\t-v, --verbose\tbe verbose(report missing files)"
 
 print '*.vcproj to CMakeLists.txt converter /by Robert Keszeg (c)2015'
 print 'Version 0.8 Use without warranty'
 	
-print "------ Processing command line parameters -----"
-if len(sys.argv) < 2:
-	print_usage()
-tree = ET.parse(sys.argv[1])
-root = tree.getroot()
-projname = root.get("Name")
-print "Project name:"+ projname;
-
 commands = sys.argv[2:len(sys.argv)]
 state = 'free'
 macros = {}
+verbose = False
+strict = False
 
 for command in commands:
-	print 'command:'+command
+	if verbose:
+		print 'command:'+command
 	if (state == 'free'):
-		if command == '-m':
+		if command == '-m' or command == '--macro':
 			state = 'macro'
+		elif command == '-v' or command == '--verbose':
+			verbose = True
+		elif command == '-s' or command == '--strict':
+			strict = True
 		else:
 			print 'Error: I don\'t understand the command<'+command+'>'
 			print_usage()
 	elif (state == 'macro'):
 		marr = command.split('=')
 		macros[marr[0]] = marr[1]
-#		print '$('+marr[0]+') = "'+marr[1]+'"'
+		if verbose:
+			print '$('+marr[0]+') = "'+marr[1]+'"'
 		state = 'free'
+
+if len(sys.argv) < 2:
+	print_usage()
+tree = ET.parse(sys.argv[1])
+root = tree.getroot()
+projname = root.get("Name")
+if verbose:
+	print "Project name:"+ projname;
+
 
 def normalizepath(input):
 	patharr = input.split('\\')
@@ -132,8 +143,8 @@ def normalizepath(input):
 def pack_flag(flag,filename):
 	return flag+'\\"'+normalizepath(filename)+'\\"'
 
-		
-print "------ Configurations -----"
+if verbose:
+	print "------ Configurations -----"
 
 targetset = set()
 configset = set()
@@ -309,7 +320,7 @@ class Group:
 		self.files = normalized
 
 	def getname(self):
-		name = projname+'_'+'_'.join(self.names)+'_SRC'
+		name = normalizestring(projname+'_'+'_'.join(self.names)+'_SRC')
 		return name
 
 	def getnamevar(self):
@@ -328,7 +339,8 @@ class Group:
 		lines.append(')')
 		return lines
 
-print "------ Filters -----"
+if verbose:
+	print "------ Filters -----"
 cmake_groups = list()
 vcproj_configs = {}
 
@@ -365,10 +377,13 @@ def getgroupsfor(rootnames,lroot):
 		if xmlFile.tag == "Filter":
 			continue
 		xmlfilename = xmlFile.get("RelativePath")
-		if os.path.exists(xmlfilename):
+		fileexists = os.path.exists(xmlfilename)
+		if not strict:
 			files.append(xmlfilename)
-		else:
+
+		if verbose and not fileexists:
 			print "file mapped in vcproj not found: " + xmlfilename;
+
 		readfileconfigs(xmlfilename,xmlFile)
 	group = Group(rootnames,files)
 	cmake_groups.append(group)
@@ -384,7 +399,8 @@ def getgroupsfor(rootnames,lroot):
 def getTool(toolpath):
 	xmltool = ET.parse(toolpath)
 	root = xmltool.getroot()
-	print "TOOL: "+root.get("Name")
+	if verbose:
+		print "TOOL: "+root.get("Name")
 	xmlrules = xmltool.find("Rules")
 	for xmlbuildrule in xmlrules:
 		name = xmlbuildrule.get("Name")
@@ -403,8 +419,8 @@ readconfigs(xmlConfigs)
 
 xmlFiles = root.find("Files")
 getgroupsfor([],xmlFiles)
-
-print "------ Output -----"
+if verbose:
+	print "------ Output -----"
 lines = []
 
 #lines.append('set(CMAKE_CONFIGURATION_TYPES "'+";".join(cfg)+'" CACHE STRING "VS/XCode configurations" FORCE)')
@@ -439,7 +455,8 @@ lines.append('set(TOEXCLUDE ${SOURCES})')
 lines.append('list(REMOVE_ITEM TOEXCLUDE ${CONFIGSRC})')
 lines.append('set_source_files_properties(${TOEXCLUDE} PROPERTIES HEADER_FILE_ONLY ON)')
 
-print "------ End -----"
+if verbose:
+	print "------ End -----"
 
 cmakefile = open("CMakeLists.txt","w")
 cmakefile.write('\n'.join(lines).replace("\t","    "))
