@@ -14,3 +14,9 @@ This converter is able to generate CMakeLists.txt from a vcproj file
 #sln2cmake
 
 - only prints out the found Projects
+
+TODO:
+- generate vcproj from sln
+- generate linker flags
+- refactor the code
+- custom build tools to cmake custom command
